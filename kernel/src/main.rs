@@ -44,7 +44,7 @@ unsafe extern "C" fn kmain() -> ! {
 }
 
 #[panic_handler]
-fn rust_panic(_info: &core::panic::moInfo) -> ! {
+fn rust_panic(_info: &core::panic::PanicInfo) -> ! {
     hcf();
 }
 
