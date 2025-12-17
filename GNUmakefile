@@ -13,8 +13,6 @@ $(call USER_VARIABLE,QEMUFLAGS,-m 2G)
 
 override IMAGE_NAME := template-$(KARCH)
 
-override cc := C:\Users\Dylan\scoop\apps\llvm\current\bin\clang.exe
-
 .PHONY: all
 all: $(IMAGE_NAME).iso
 
