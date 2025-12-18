@@ -1,10 +1,19 @@
 #![no_std]
 #![no_main]
 
-use core::arch::asm;
+const CHAR_WIDTH: usize = 12;
+const CHAR_HEIGHT: usize = 24;
 
+use core::arch::asm;
+use core::fmt::{self, Write};
+
+use lazy_static::lazy_static;
 use limine::BaseRevision;
+use limine::framebuffer::Framebuffer;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
+use spleen_font::{FONT_12X24, PSF2Font};
+use x86_64::structures::gdt::{self, Descriptor, GlobalDescriptorTable};
+use x86_64::structures::tss::TaskStateSegment;
 
 // #[used] lets the compiler know not to remove
 #[used]
@@ -23,40 +32,128 @@ static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
 #[unsafe(link_section = ".requests_end_marker")]
 static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 
+trait Display {
+  unsafe fn write_pixel(&self, code: u32, x: u64, y: u64);
+}
+
+impl<'a> Display for Framebuffer<'a> {
+  unsafe fn write_pixel(&self, color: u32, x: u64, y: u64) {
+    let pixel_offset = y * self.pitch() + x * 4;
+    unsafe {
+      self
+        .addr()
+        .add(pixel_offset as usize)
+        .cast::<u32>()
+        .write(color);
+    }
+  }
+}
+
+struct Writer<'a> {
+  framebuffer: &'a Framebuffer<'a>,
+  font: &'a mut PSF2Font<'a>,
+  col_x: usize,
+  row_y: usize,
+}
+
+impl<'a, 'b> Writer<'a>
+where
+  'a: 'b,
+{
+  fn new(framebuffer: &'a Framebuffer<'b>, font: &'a mut PSF2Font<'b>) -> Self {
+    Self {
+      framebuffer,
+      font,
+      col_x: 0,
+      row_y: 0,
+    }
+  }
+}
+
+impl<'a> fmt::Write for Writer<'a> {
+  fn write_str(&mut self, s: &str) -> fmt::Result {
+    let mut tmp = [0u8, 2];
+    for char in s.chars() {
+      let bytes = char.encode_utf8(&mut tmp).as_bytes();
+      if bytes == &[0x000A_u8][..] {
+        self.row_y += 1;
+        self.col_x = 0;
+      } else {
+        self.write_char(char);
+        self.col_x += 1;
+      }
+    }
+    Ok(())
+  }
+
+  fn write_char(&mut self, text: char) -> Result<(), core::fmt::Error> {
+    let mut tmp = [0u8, 2];
+
+    if let Some(glyph) = self
+      .font
+      .glyph_for_utf8(text.encode_utf8(&mut tmp).as_bytes())
+    {
+      for (row_y, row) in glyph.enumerate() {
+        for (col_x, on) in row.enumerate() {
+          unsafe {
+            if on {
+              self.framebuffer.write_pixel(
+                0xFFFFFFFF,
+                (self.col_x * CHAR_WIDTH + col_x) as u64,
+                (self.row_y * CHAR_HEIGHT + row_y) as u64,
+              );
+            }
+          }
+        }
+      }
+    }
+    Ok(())
+  }
+}
+
 #[unsafe(no_mangle)]
 unsafe extern "C" fn kmain() -> ! {
-    assert!(BASE_REVISION.is_supported());
-    if let Some(framebuffer_response) = FRAMEBUFFER_REQUEST.get_response() {
-        if let Some(framebuffer) = framebuffer_response.framebuffers().next() {
-            for i in 0..100_u64 {
-                let pixel_offset = i * framebuffer.pitch() + i * 4;
-                unsafe {
-                    framebuffer
-                        .addr()
-                        .add(pixel_offset as usize)
-                        .cast::<u32>()
-                        .write(0xFFFFFFFF);
-                }
-            }
-        }
+  assert!(BASE_REVISION.is_supported());
+  if let Some(framebuffer_response) = FRAMEBUFFER_REQUEST.get_response() {
+    if let Some(framebuffer) = framebuffer_response.framebuffers().next() {
+      let mut font = PSF2Font::new(FONT_12X24).unwrap();
+      let mut writer = Writer::new(&framebuffer, &mut font);
+      writeln!(writer, "dkos 0.0.1");
+      writeln!(writer, "{:?}", 67.0 / 61.0);
+      writeln!(writer, "{:?}", framebuffer.addr());
+      lazy_static! {
+        static ref TSS: TaskStateSegment = {
+          let mut tss = TaskStateSegment::new();
+          tss
+        };
+      }
+      lazy_static! {
+        static ref GDT: GlobalDescriptorTable = {
+          let mut gdt = GlobalDescriptorTable::new();
+          gdt.append(Descriptor::kernel_code_segment());
+          gdt.append(Descriptor::user_code_segment());
+          gdt.append(Descriptor::user_data_segment());
+          gdt.append(Descriptor::tss_segment(&TSS));
+          gdt
+        };
+      };
+      GDT.load();
+      writeln!(writer, "in protected mode?");
     }
-    hcf();
+  }
+  hcf();
 }
 
 #[panic_handler]
 fn rust_panic(_info: &core::panic::PanicInfo) -> ! {
-    hcf();
+  hcf();
 }
 
 fn hcf() -> ! {
-    loop {
-        unsafe {
-            #[cfg(target_arch = "x86_64")]
-            asm!("hlt");
-            #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
-            asm!("wfi");
-            #[cfg(target_arch = "loongarch64")]
-            asm!("idle 0");
-        }
+  loop {
+    unsafe {
+      #[cfg(target_arch = "x86_64")]
+      asm!("hlt");
     }
+  }
 }

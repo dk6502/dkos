@@ -25,3 +25,7 @@ build karch:
 clean:
     just kernel/ clean
     rm -f dkos-*.iso
+
+run karch:
+    just build {{ karch }}
+    qemu-system-{{ karch }} dkos-{{ karch }}.iso

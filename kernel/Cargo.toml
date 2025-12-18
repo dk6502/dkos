@@ -3,5 +3,14 @@ name = "kernel"
 version = "0.1.0"
 edition = "2024"
 
+
+[[bin]]
+name = "kernel"
+test = false
+bench = false
+
 [dependencies]
+lazy_static = {version = "1.5.0", features = ["spin_no_std"] }
 limine = "0.5.0"
+spleen-font = { version = "0.2.0", features = ["s12x24"] }
+x86_64 = "0.15.4"
