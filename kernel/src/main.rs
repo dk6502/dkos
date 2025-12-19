@@ -12,7 +12,9 @@ use limine::BaseRevision;
 use limine::framebuffer::Framebuffer;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
 use spleen_font::{FONT_12X24, PSF2Font};
-use x86_64::structures::gdt::{self, Descriptor, GlobalDescriptorTable};
+use x86_64::instructions::tables::load_tss;
+use x86_64::registers::segmentation::{CS, SS, Segment};
+use x86_64::structures::gdt::{self, Descriptor, GlobalDescriptorTable, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
 
 // #[used] lets the compiler know not to remove
@@ -32,6 +34,12 @@ static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
 #[unsafe(link_section = ".requests_end_marker")]
 static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 
+struct Selectors {
+  code_selector: SegmentSelector,
+  tss_selector: SegmentSelector,
+  data_selector: SegmentSelector,
+}
+
 trait Display {
   unsafe fn write_pixel(&self, code: u32, x: u64, y: u64);
 }
@@ -50,7 +58,7 @@ impl<'a> Display for Framebuffer<'a> {
 }
 
 struct Writer<'a> {
-  framebuffer: &'a Framebuffer<'a>,
+  framebuffer: Option<&'a Framebuffer<'a>>,
   font: &'a mut PSF2Font<'a>,
   col_x: usize,
   row_y: usize,
@@ -60,7 +68,7 @@ impl<'a, 'b> Writer<'a>
 where
   'a: 'b,
 {
-  fn new(framebuffer: &'a Framebuffer<'b>, font: &'a mut PSF2Font<'b>) -> Self {
+  fn new(framebuffer: Option<&'a Framebuffer<'b>>, font: &'a mut PSF2Font<'b>) -> Self {
     Self {
       framebuffer,
       font,
@@ -92,12 +100,13 @@ impl<'a> fmt::Write for Writer<'a> {
     if let Some(glyph) = self
       .font
       .glyph_for_utf8(text.encode_utf8(&mut tmp).as_bytes())
+      && let Some(framebuffer) = self.framebuffer
     {
       for (row_y, row) in glyph.enumerate() {
         for (col_x, on) in row.enumerate() {
           unsafe {
             if on {
-              self.framebuffer.write_pixel(
+              framebuffer.write_pixel(
                 0xFFFFFFFF,
                 (self.col_x * CHAR_WIDTH + col_x) as u64,
                 (self.row_y * CHAR_HEIGHT + row_y) as u64,
@@ -117,28 +126,10 @@ unsafe extern "C" fn kmain() -> ! {
   if let Some(framebuffer_response) = FRAMEBUFFER_REQUEST.get_response() {
     if let Some(framebuffer) = framebuffer_response.framebuffers().next() {
       let mut font = PSF2Font::new(FONT_12X24).unwrap();
-      let mut writer = Writer::new(&framebuffer, &mut font);
+      let mut writer = Writer::new(Some(&framebuffer), &mut font);
       writeln!(writer, "dkos 0.0.1");
       writeln!(writer, "{:?}", 67.0 / 61.0);
       writeln!(writer, "{:?}", framebuffer.addr());
-      lazy_static! {
-        static ref TSS: TaskStateSegment = {
-          let mut tss = TaskStateSegment::new();
-          tss
-        };
-      }
-      lazy_static! {
-        static ref GDT: GlobalDescriptorTable = {
-          let mut gdt = GlobalDescriptorTable::new();
-          gdt.append(Descriptor::kernel_code_segment());
-          gdt.append(Descriptor::user_code_segment());
-          gdt.append(Descriptor::user_data_segment());
-          gdt.append(Descriptor::tss_segment(&TSS));
-          gdt
-        };
-      };
-      GDT.load();
-      writeln!(writer, "in protected mode?");
     }
   }
   hcf();
