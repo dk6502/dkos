@@ -1,5 +1,4 @@
 build karch:
-    CC="cl" make -C limine
     just kernel/ build {{ karch }}
     @echo 'dkos-'{{ karch }}
     rm -rf iso_root
