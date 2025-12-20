@@ -130,8 +130,6 @@ unsafe extern "C" fn kmain() -> ! {
   hcf();
 }
 
-unsafe fn iret() {}
-
 #[panic_handler]
 fn rust_panic(_info: &core::panic::PanicInfo) -> ! {
   hcf();

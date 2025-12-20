@@ -1,2 +1,7 @@
 *.iso
-*/target
+limine/
+
+
+# Added by cargo
+
+/target
