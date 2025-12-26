@@ -4,13 +4,13 @@
 use core::arch::asm;
 use core::fmt::Write;
 
-use crate::display::Display;
-use crate::writer::Writer;
+use crate::writer::WRITER;
+use lazy_static::lazy_static;
 use limine::BaseRevision;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
+use spin::mutex::Mutex;
 use spleen_font::{FONT_12X24, PSF2Font};
 use uart_16550::SerialPort;
-use x86_64::structures::gdt::{self, GlobalDescriptorTable};
 
 mod display;
 mod writer;
@@ -38,36 +38,15 @@ const SERIAL_IO_PORT: u16 = 0x3F8;
 unsafe extern "C" fn kmain() -> ! {
   assert!(BASE_REVISION.is_supported());
   let mut serial_port = unsafe { SerialPort::new(SERIAL_IO_PORT) };
-  let mut font = PSF2Font::new(FONT_12X24).unwrap();
   serial_port.init();
-  if let Some(framebuffer_response) = FRAMEBUFFER_REQUEST.get_response() {
-    if let Some(framebuffer) = framebuffer_response.framebuffers().next() {
-      let mut writer = Writer::new(Some(&framebuffer), Some(&mut font));
-      let _ = writeln!(writer, "dkos 0.1.0");
-      let _ = writeln!(writer, "{:?}", 67.0 / 61.0);
-      let _ = writeln!(writer, "{:?}", framebuffer.addr());
-    }
-  }
   let _ = writeln!(serial_port, "dkos 0.1.0");
+  let _ = writeln!(WRITER.lock(), "dkos 0.1.0");
+
   hcf();
 }
-
 #[panic_handler]
 fn rust_panic(info: &core::panic::PanicInfo) -> ! {
-  if let Some(framebuffer_request) = FRAMEBUFFER_REQUEST.get_response() {
-    if let Some(framebuffer) = framebuffer_request.framebuffers().next() {
-      for i in 0..framebuffer.width() {
-        for j in 0..framebuffer.height() {
-          unsafe {
-            framebuffer.write_pixel(0xFF0000FF, i, j);
-          }
-        }
-      }
-      let mut font = PSF2Font::new(FONT_12X24).unwrap();
-      let mut writer = Writer::new(Some(&framebuffer), Some(&mut font));
-      let _ = write!(writer, "{}", info);
-    }
-  }
+  let _ = writeln!(WRITER.lock(), "{}", info);
   hcf();
 }
 

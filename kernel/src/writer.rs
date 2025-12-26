@@ -1,22 +1,31 @@
 use core::fmt;
 
+use lazy_static::lazy_static;
 use limine::framebuffer::Framebuffer;
-use spleen_font::PSF2Font;
+use spin::mutex::Mutex;
+use spleen_font::{FONT_12X24, PSF2Font};
 
-use crate::display::Display;
+use crate::{FRAMEBUFFER_REQUEST, display::Display};
+
+lazy_static! {
+  pub static ref WRITER: Mutex<Writer<'static>> = {
+    let font = PSF2Font::new(FONT_12X24).unwrap();
+    let framebuffer_response = FRAMEBUFFER_REQUEST.get_response().unwrap();
+    let framebuffer = framebuffer_response.framebuffers().next().unwrap();
+    let writer = Mutex::new(Writer::new(framebuffer, font));
+    writer
+  };
+}
 
 pub struct Writer<'a> {
-  framebuffer: Option<&'a Framebuffer<'a>>,
-  font: Option<&'a mut PSF2Font<'a>>,
+  pub framebuffer: Framebuffer<'a>,
+  pub font: PSF2Font<'a>,
   col_x: usize,
   row_y: usize,
 }
 
-impl<'a, 'b> Writer<'a>
-where
-  'a: 'b,
-{
-  pub fn new(framebuffer: Option<&'a Framebuffer<'b>>, font: Option<&'a mut PSF2Font<'b>>) -> Self {
+impl<'a> Writer<'a> {
+  pub fn new(framebuffer: Framebuffer<'a>, font: PSF2Font<'a>) -> Self {
     Self {
       framebuffer,
       font,
@@ -45,20 +54,16 @@ impl<'a> fmt::Write for Writer<'a> {
   fn write_char(&mut self, text: char) -> Result<(), core::fmt::Error> {
     let mut tmp = [0u8, 2];
     let bytes = text.encode_utf8(&mut tmp).as_bytes();
-    if let Some(framebuffer) = self.framebuffer
-      && let Some(ref mut font) = self.font
-    {
-      if let Some(glyph) = font.glyph_for_utf8(bytes) {
-        for (row_y, row) in glyph.enumerate() {
-          for (col_x, on) in row.enumerate() {
-            unsafe {
-              if on {
-                framebuffer.write_pixel(
-                  0xFFFFFFFF,
-                  (self.col_x * font.width as usize + col_x) as u64,
-                  (self.row_y * font.header_size as usize + row_y) as u64,
-                );
-              }
+    if let Some(glyph) = self.font.glyph_for_utf8(bytes) {
+      for (row_y, row) in glyph.enumerate() {
+        for (col_x, on) in row.enumerate() {
+          unsafe {
+            if on {
+              self.framebuffer.write_pixel(
+                0xFFFFFFFF,
+                (self.col_x * self.font.width as usize + col_x) as u64,
+                (self.row_y * self.font.header_size as usize + row_y) as u64,
+              );
             }
           }
         }

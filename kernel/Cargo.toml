@@ -13,6 +13,9 @@ x86_64.workspace = true
 spleen-font.workspace = true
 uart_16550.workspace = true
 limine.workspace = true
+lazy_static.workspace = true
+spin.workspace = true
+talc = "4.4.3"
 
 [profile.dev]
 panic = "abort"
