@@ -40,7 +40,7 @@ unsafe extern "C" fn kmain() -> ! {
   let mut serial_port = unsafe { SerialPort::new(SERIAL_IO_PORT) };
   serial_port.init();
   let _ = writeln!(serial_port, "dkos 0.1.0");
-  let _ = writeln!(WRITER.lock(), "dkos 0.1.0");
+  let _ = writeln!(WRITER.lock(), "dkos 0.1.");
 
   hcf();
 }
