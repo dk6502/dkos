@@ -8,14 +8,16 @@ name = "kernel"
 test = false
 bench = false
 
+[build-dependencies]
+cc = "1.0"
+
 [dependencies]
-x86_64.workspace = true
 spleen-font.workspace = true
 uart_16550.workspace = true
 limine.workspace = true
 lazy_static.workspace = true
 spin.workspace = true
-talc = "4.4.3"
+bit_field.workspace = true
 
 [profile.dev]
 panic = "abort"

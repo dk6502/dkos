@@ -1,6 +1,6 @@
 build:
     #!/usr/bin/env sh
-    if cargo build; then
+    if cargo build --release; then
     if test -a limine;
     then echo Limine is already cloned
     else git clone https://github.com/limine-bootloader/limine.git --branch=v9.x-binary --depth=1
@@ -27,7 +27,7 @@ clean:
     rm -rf limine
 
 run:
-  #!/usr/bin/env sh
-    if just build; then
-    qemu-system-x86_64 dkos-x86_64.iso
-    fi
+    #!/usr/bin/env sh
+      if just build; then
+      qemu-system-x86_64 dkos-x86_64.iso
+      fi

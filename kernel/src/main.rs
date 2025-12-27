@@ -1,18 +1,18 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
 
 use core::arch::asm;
 use core::fmt::Write;
 
+use crate::gdt::{reload_segments, set_gdt};
 use crate::writer::WRITER;
-use lazy_static::lazy_static;
 use limine::BaseRevision;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
-use spin::mutex::Mutex;
-use spleen_font::{FONT_12X24, PSF2Font};
 use uart_16550::SerialPort;
 
 mod display;
+mod gdt;
 mod writer;
 
 // #[used] lets the compiler know not to remove
@@ -34,13 +34,23 @@ static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 
 const SERIAL_IO_PORT: u16 = 0x3F8;
 
+extern "C" fn breakpoint_handler() -> ! {
+  panic!("yeah")
+}
+
+fn divide_by_zero() {
+  unsafe { asm!("mov dx, 0; div dx") }
+}
+
 #[unsafe(no_mangle)]
 unsafe extern "C" fn kmain() -> ! {
   assert!(BASE_REVISION.is_supported());
   let mut serial_port = unsafe { SerialPort::new(SERIAL_IO_PORT) };
   serial_port.init();
+  //set_gdt();
+  //reload_segments();
   let _ = writeln!(serial_port, "dkos 0.1.0");
-  let _ = writeln!(WRITER.lock(), "dkos 0.1.");
+  let _ = writeln!(WRITER.lock(), "dkos 0.1.0");
 
   hcf();
 }
