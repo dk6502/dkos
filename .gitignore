@@ -1,6 +1,6 @@
 *.iso
 limine/
-
+log*
 
 # Added by cargo
 

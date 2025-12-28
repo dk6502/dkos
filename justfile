@@ -1,6 +1,6 @@
 build:
     #!/usr/bin/env sh
-    if cargo build --release; then
+    if cargo build; then
     if test -a limine;
     then echo Limine is already cloned
     else git clone https://github.com/limine-bootloader/limine.git --branch=v9.x-binary --depth=1

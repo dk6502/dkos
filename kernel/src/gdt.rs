@@ -1,28 +1,51 @@
-use core::arch::global_asm;
+use core::arch::asm;
 
 use lazy_static::lazy_static;
 
-lazy_static! {
-  static ref GDT: GlobalDescriptorTable = {
-    let gdt = [
-      GlobalDescriptorTableEntry::new(0, 0, 0, 0),
-      GlobalDescriptorTableEntry::new(0, 0xFFFFFFFF, 0x9A, 0xCF),
-      GlobalDescriptorTableEntry::new(0, 0xFFFFFFFF, 0x92, 0xCF),
-    ];
-    gdt
+static GDT: [u64; 3] = {
+  let gdt = [
+    // This is the initial null GDT segment.
+    0,
+    // This is the kernel code segment
+    0x00af9b000000ffff,
+    // This is the kernel data segment
+    0x00af93000000ffff,
+  ];
+  gdt
+};
+
+pub fn set_gdt() {
+  let gp = GlobalDescriptorTablePointer {
+    limit: (size_of_val(&GDT) - 1) as u16,
+    base: &GDT as *const _ as u64,
   };
-  static ref GP: GlobalDescriptorTablePointer = {
-    GlobalDescriptorTablePointer {
-      limit: (size_of::<GlobalDescriptorTable>() * 3 - 1) as u16,
-      base: &GDT as *const _ as u32,
-    }
-  };
+  unsafe {
+    asm!(
+      "
+      lgdt [{}]
+      "
+      , in(reg) &gp)
+  }
 }
-
-pub extern "C" fn set_gdt() {}
-pub extern "C" fn reload_segments() {}
-
-type GlobalDescriptorTable = [GlobalDescriptorTableEntry; 3];
+pub fn reload_segments() {
+  unsafe {
+    asm!(
+      "
+        push 0x08
+        lea rax, [rip +  2f]
+        push rax
+        retfq
+      2:
+        mov ax, 0x10
+        mov ds, ax
+        mov es, ax
+        mov fs, ax
+        mov gs, ax
+        mov ss, ax
+        "
+    )
+  }
+}
 
 #[repr(C, packed)]
 struct GlobalDescriptorTableEntry {
@@ -35,7 +58,7 @@ struct GlobalDescriptorTableEntry {
 }
 
 impl GlobalDescriptorTableEntry {
-  fn new(base: u32, limit: u32, access: u8, gran: u8) -> Self {
+  const fn new(base: u32, limit: u32, access: u8, gran: u8) -> Self {
     let mut granularity: u8;
     granularity = ((limit >> 16) & 0x0F) as u8;
     granularity |= gran & 0xF0;
@@ -53,5 +76,5 @@ impl GlobalDescriptorTableEntry {
 #[repr(C, packed)]
 struct GlobalDescriptorTablePointer {
   limit: u16,
-  base: u32,
+  base: u64,
 }
