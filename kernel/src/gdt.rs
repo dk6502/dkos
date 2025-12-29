@@ -1,15 +1,13 @@
 use core::arch::asm;
 
-use lazy_static::lazy_static;
-
-static GDT: [u64; 3] = {
+pub static GDT: [GlobalDescriptorTableEntry; 3] = {
   let gdt = [
     // This is the initial null GDT segment.
-    0,
+    GlobalDescriptorTableEntry::new(0, 0, 0, 0),
     // This is the kernel code segment
-    0x00af9b000000ffff,
+    GlobalDescriptorTableEntry::new(0, 0xfffff, 0x9b, 0xaf),
     // This is the kernel data segment
-    0x00af93000000ffff,
+    GlobalDescriptorTableEntry::new(0, 0xfffff, 0x93, 0xcf),
   ];
   gdt
 };
@@ -31,24 +29,24 @@ pub fn reload_segments() {
   unsafe {
     asm!(
       "
-        push 0x08
-        lea rax, [rip +  2f]
-        push rax
-        retfq
+      push 0x08
+      lea rax, [rip +  2f]
+      push rax
+      retfq
       2:
-        mov ax, 0x10
-        mov ds, ax
-        mov es, ax
-        mov fs, ax
-        mov gs, ax
-        mov ss, ax
-        "
+      mov ax, 0x10
+      mov ds, ax
+      mov es, ax
+      mov fs, ax
+      mov gs, ax
+      mov ss, ax
+      "
     )
   }
 }
 
 #[repr(C, packed)]
-struct GlobalDescriptorTableEntry {
+pub struct GlobalDescriptorTableEntry {
   limit_low: u16,
   base_low: u16,
   base_middle: u8,

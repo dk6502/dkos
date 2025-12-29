@@ -40,7 +40,9 @@ impl<'a> fmt::Write for Writer<'a> {
     let mut tmp = [0u8, 2];
     for char in s.chars() {
       let bytes = char.encode_utf8(&mut tmp).as_bytes();
-      if bytes == &[0x000A_u8][..] {
+      if bytes == &[0x000A_u8][..]
+        || self.col_x == self.framebuffer.width() as usize / self.font.width as usize
+      {
         self.row_y += 1;
         self.col_x = 0;
       } else {

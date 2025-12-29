@@ -6,6 +6,7 @@ use core::arch::asm;
 use core::fmt::Write;
 
 use crate::gdt::{reload_segments, set_gdt};
+use crate::idt::lidt;
 use crate::writer::WRITER;
 use limine::BaseRevision;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
@@ -13,6 +14,7 @@ use uart_16550::SerialPort;
 
 mod display;
 mod gdt;
+mod idt;
 mod writer;
 
 // #[used] lets the compiler know not to remove
@@ -34,10 +36,6 @@ static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 
 const SERIAL_IO_PORT: u16 = 0x3F8;
 
-extern "C" fn breakpoint_handler() -> ! {
-  panic!("yeah")
-}
-
 fn divide_by_zero() {
   unsafe { asm!("mov dx, 0; div dx") }
 }
@@ -47,10 +45,13 @@ unsafe extern "C" fn kmain() -> ! {
   assert!(BASE_REVISION.is_supported());
   let mut serial_port = unsafe { SerialPort::new(SERIAL_IO_PORT) };
   serial_port.init();
+  let _ = writeln!(WRITER.lock(), "dkos 0.1.0");
   set_gdt();
   reload_segments();
-  let _ = writeln!(serial_port, "dkos 0.1.0");
-  let _ = writeln!(WRITER.lock(), "dkos 0.1.0");
+  let _ = writeln!(WRITER.lock(), "GDT init OK");
+  lidt();
+  let _ = writeln!(WRITER.lock(), "IDT init OK");
+  divide_by_zero();
 
   hcf();
 }
