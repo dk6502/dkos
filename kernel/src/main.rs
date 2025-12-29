@@ -51,7 +51,9 @@ unsafe extern "C" fn kmain() -> ! {
   let _ = writeln!(WRITER.lock(), "GDT init OK");
   lidt();
   let _ = writeln!(WRITER.lock(), "IDT init OK");
+
   divide_by_zero();
+  let _ = writeln!(WRITER.lock(), "IDT init OK 2");
 
   hcf();
 }

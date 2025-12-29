@@ -1,13 +1,13 @@
 use core::arch::asm;
 
-pub static GDT: [GlobalDescriptorTableEntry; 3] = {
+pub static GDT: [u64; 3] = {
   let gdt = [
     // This is the initial null GDT segment.
-    GlobalDescriptorTableEntry::new(0, 0, 0, 0),
+    0,
     // This is the kernel code segment
-    GlobalDescriptorTableEntry::new(0, 0xfffff, 0x9b, 0xaf),
+    0x00af9b000000ffff,
     // This is the kernel data segment
-    GlobalDescriptorTableEntry::new(0, 0xfffff, 0x93, 0xcf),
+    0x00cf93000000ffff,
   ];
   gdt
 };

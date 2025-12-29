@@ -2,12 +2,12 @@ use crate::writer::WRITER;
 use core::arch::asm;
 use core::fmt::Write;
 
-pub type HandlerFunc = extern "C" fn() -> !;
+pub type HandlerFunc = unsafe extern "C" fn() -> !;
 static mut IDT: [InterruptDescriptorTableEntry; 32] = [InterruptDescriptorTableEntry::empty(); 32];
 
 pub fn lidt() {
   unsafe {
-    IDT[0] = InterruptDescriptorTableEntry::new(divide_by_zero_handler, EntryOptions::new());
+    IDT[0] = InterruptDescriptorTableEntry::new(interrupt_stub, EntryOptions::new());
   }
   let idtp = InterruptDescriptorTablePtr {
     limit: (size_of::<InterruptDescriptorTableEntry>() * 32 - 1) as u16,
@@ -43,12 +43,12 @@ impl EntryOptions {
   }
 
   const fn set_present(&mut self, present: bool) -> &mut Self {
-    self.0 = (present as u16) << 15;
+    self.0 |= (present as u16) << 15;
     self
   }
 
   const fn disable_interrupts(&mut self, disable: bool) -> &mut Self {
-    self.0 = (!disable as u16) << 8;
+    self.0 |= (!disable as u16) << 8;
     self
   }
 
@@ -79,10 +79,9 @@ struct InterruptDescriptorTableEntry {
 impl InterruptDescriptorTableEntry {
   fn new(handler: HandlerFunc, options: EntryOptions) -> Self {
     let offset = handler as u64;
-    let selector = 0x8;
     Self {
       offset_low: offset as u16,
-      selector,
+      selector: 0x08,
       options: options,
       offset_mid: (offset >> 16) as u16,
       offset_high: (offset >> 32) as u32,
@@ -103,6 +102,11 @@ impl InterruptDescriptorTableEntry {
 
 // Handler functions
 
-extern "C" fn divide_by_zero_handler() -> ! {
-  panic!("sure")
+unsafe extern "C" {
+  fn interrupt_stub() -> !;
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn interrupt_dispatch() {
+  write!(WRITER.lock(), "d");
 }
