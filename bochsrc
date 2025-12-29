@@ -1,9 +1,0 @@
-romimage: file=$BXSHARE/BIOS-bochs-latest
-vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest
-ata0-master: type=disk, path="c.img", mode=flat
-ata0-slave: type=cdrom, path="dkos-x86_64.iso", status=inserted
-
-
-boot: cdrom
-display_library: sdl2
-log: log.txt

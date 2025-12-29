@@ -2,11 +2,15 @@ use core::arch::asm;
 
 use crate::println;
 
+/// Number of IDT entries. Should be 256.
+const IDT_ENTRY_COUNT: usize = 256;
+
 /// Type that defines ISRs
-pub type HandlerFunc = unsafe extern "C" fn() -> !;
+type HandlerFunc = unsafe extern "C" fn() -> !;
 // This isn't a lazy_static b/c that seems to mess up the initialization of the IDT.
 /// The IDT itself.
-static mut IDT: [InterruptDescriptorTableEntry; 32] = [InterruptDescriptorTableEntry::empty(); 32];
+static mut IDT: [InterruptDescriptorTableEntry; IDT_ENTRY_COUNT] =
+  [InterruptDescriptorTableEntry::empty(); IDT_ENTRY_COUNT];
 
 /// Defines the 2 types of gates an IDT entry can have.
 /// After `iretq`, an interrupt (caused by user error)
@@ -25,7 +29,7 @@ pub fn init_idt() {
     IDT[3] = InterruptDescriptorTableEntry::new(interrupt_stub, GateType::Trap);
   }
   let idtp = InterruptDescriptorTablePtr {
-    limit: (size_of::<InterruptDescriptorTableEntry>() * 32 - 1) as u16,
+    limit: (size_of::<InterruptDescriptorTableEntry>() * IDT_ENTRY_COUNT - 1) as u16,
     base: &raw const IDT,
   };
   unsafe {
@@ -44,7 +48,7 @@ pub fn init_idt() {
 #[derive(Debug)]
 struct InterruptDescriptorTablePtr {
   limit: u16,
-  base: *const [InterruptDescriptorTableEntry; 32],
+  base: *const [InterruptDescriptorTableEntry; IDT_ENTRY_COUNT],
 }
 
 /// Describes an entry in the IDT

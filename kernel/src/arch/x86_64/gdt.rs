@@ -3,7 +3,7 @@ use core::arch::asm;
 use crate::println;
 
 /// The static GDT
-pub static GDT: [u64; 3] = {
+static GDT: [u64; 5] = {
   // The entries here are u64s b/c they will stay unchanged
   let gdt = [
     // This is the initial null GDT segment.
@@ -12,6 +12,10 @@ pub static GDT: [u64; 3] = {
     0x00af9b000000ffff,
     // This is the kernel data segment
     0x00cf93000000ffff,
+    // User data segment
+    0x00affb000000ffff,
+    // User code segment
+    0x00aff3000000ffff,
   ];
   gdt
 };

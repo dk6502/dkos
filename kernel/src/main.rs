@@ -65,6 +65,8 @@ unsafe extern "C" fn kmain() -> ! {
     arch::x86_64::idt::init_idt();
     unsafe { asm!("int3") }
   }
+  divide_by_zero();
+
   hcf();
 }
 
