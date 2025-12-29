@@ -40,6 +40,11 @@ fn divide_by_zero() {
   unsafe { asm!("mov dx, 0; div dx") }
 }
 
+#[allow(unused)]
+fn breakpoint() {
+  unsafe { asm!("2: jmp 2b") }
+}
+
 #[unsafe(no_mangle)]
 unsafe extern "C" fn kmain() -> ! {
   assert!(BASE_REVISION.is_supported());
@@ -52,9 +57,9 @@ unsafe extern "C" fn kmain() -> ! {
   lidt();
   let _ = writeln!(WRITER.lock(), "IDT init OK");
 
-  divide_by_zero();
+  unsafe { asm!("int3") }
   let _ = writeln!(WRITER.lock(), "IDT init OK 2");
-
+  divide_by_zero();
   hcf();
 }
 #[panic_handler]

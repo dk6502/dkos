@@ -5,57 +5,28 @@ use core::fmt::Write;
 pub type HandlerFunc = unsafe extern "C" fn() -> !;
 static mut IDT: [InterruptDescriptorTableEntry; 32] = [InterruptDescriptorTableEntry::empty(); 32];
 
+#[repr(u8)]
+enum GateType {
+  Interrupt = 0x0E,
+  Trap = 0x0F,
+}
+
 pub fn lidt() {
   unsafe {
-    IDT[0] = InterruptDescriptorTableEntry::new(interrupt_stub, EntryOptions::new());
+    IDT[0] = InterruptDescriptorTableEntry::new(interrupt_stub, GateType::Interrupt);
+    IDT[3] = InterruptDescriptorTableEntry::new(interrupt_stub, GateType::Trap);
   }
   let idtp = InterruptDescriptorTablePtr {
     limit: (size_of::<InterruptDescriptorTableEntry>() * 32 - 1) as u16,
     base: &raw const IDT,
   };
-  let _ = writeln!(WRITER.lock(), "{:?}", idtp);
   unsafe {
-    let _ = writeln!(WRITER.lock(), "{:?}", IDT[0]);
-
     asm!(
       "
       lidt [{}]
       ",
       in(reg) &idtp
     )
-  }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct EntryOptions(pub u16);
-
-impl EntryOptions {
-  const fn minimal() -> Self {
-    let mut options = 0;
-    options |= 0b111 << 9;
-    Self(options)
-  }
-
-  const fn new() -> Self {
-    let mut options = Self::minimal();
-    options.set_present(true).disable_interrupts(true);
-    options
-  }
-
-  const fn set_present(&mut self, present: bool) -> &mut Self {
-    self.0 |= (present as u16) << 15;
-    self
-  }
-
-  const fn disable_interrupts(&mut self, disable: bool) -> &mut Self {
-    self.0 |= (!disable as u16) << 8;
-    self
-  }
-
-  const fn set_privilege_level(&mut self, dpl: u16) -> &mut Self {
-    let dpl = dpl & 0b111;
-    self.0 = dpl << 13;
-    self
   }
 }
 
@@ -71,18 +42,20 @@ struct InterruptDescriptorTablePtr {
 struct InterruptDescriptorTableEntry {
   offset_low: u16,
   selector: u16,
-  options: EntryOptions,
+  ist: u8,
+  options: u8,
   offset_mid: u16,
   offset_high: u32,
   reserved: u32,
 }
 impl InterruptDescriptorTableEntry {
-  fn new(handler: HandlerFunc, options: EntryOptions) -> Self {
+  fn new(handler: HandlerFunc, gate_type: GateType) -> Self {
     let offset = handler as u64;
     Self {
       offset_low: offset as u16,
       selector: 0x08,
-      options: options,
+      ist: 0,
+      options: 0x80 | gate_type as u8,
       offset_mid: (offset >> 16) as u16,
       offset_high: (offset >> 32) as u32,
       reserved: 0,
@@ -92,7 +65,8 @@ impl InterruptDescriptorTableEntry {
     Self {
       offset_low: 0,
       selector: 0,
-      options: EntryOptions::minimal(),
+      ist: 0,
+      options: 0xE0,
       offset_mid: 0,
       offset_high: 0,
       reserved: 0,
@@ -108,5 +82,5 @@ unsafe extern "C" {
 
 #[unsafe(no_mangle)]
 extern "C" fn interrupt_dispatch() {
-  write!(WRITER.lock(), "d");
+  let _ = writeln!(WRITER.lock(), "INTERRUPT: CODE {}", "x");
 }
