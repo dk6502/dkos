@@ -1,17 +1,25 @@
-use crate::writer::WRITER;
 use core::arch::asm;
-use core::fmt::Write;
 
+use crate::println;
+
+/// Type that defines ISRs
 pub type HandlerFunc = unsafe extern "C" fn() -> !;
+// This isn't a lazy_static b/c that seems to mess up the initialization of the IDT.
+/// The IDT itself.
 static mut IDT: [InterruptDescriptorTableEntry; 32] = [InterruptDescriptorTableEntry::empty(); 32];
 
+/// Defines the 2 types of gates an IDT entry can have.
+/// After `iretq`, an interrupt (caused by user error)
+/// goes back to a (preferably fixed) version of the faulty instruction.
+/// A trap (usually software generated) would continue to the next instruction.
 #[repr(u8)]
 enum GateType {
   Interrupt = 0x0E,
   Trap = 0x0F,
 }
 
-pub fn lidt() {
+/// Initializes the IDT with non-empty handlers & calls `lidt` to load the thing
+pub fn init_idt() {
   unsafe {
     IDT[0] = InterruptDescriptorTableEntry::new(interrupt_stub, GateType::Interrupt);
     IDT[3] = InterruptDescriptorTableEntry::new(interrupt_stub, GateType::Trap);
@@ -28,8 +36,10 @@ pub fn lidt() {
       in(reg) &idtp
     )
   }
+  println!("IDK init OK");
 }
 
+/// Data type for the `idtr`
 #[repr(C, packed)]
 #[derive(Debug)]
 struct InterruptDescriptorTablePtr {
@@ -37,6 +47,7 @@ struct InterruptDescriptorTablePtr {
   base: *const [InterruptDescriptorTableEntry; 32],
 }
 
+/// Describes an entry in the IDT
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 struct InterruptDescriptorTableEntry {
@@ -49,6 +60,7 @@ struct InterruptDescriptorTableEntry {
   reserved: u32,
 }
 impl InterruptDescriptorTableEntry {
+  /// Creates a non-empty entry in the IDT
   fn new(handler: HandlerFunc, gate_type: GateType) -> Self {
     let offset = handler as u64;
     Self {
@@ -61,6 +73,7 @@ impl InterruptDescriptorTableEntry {
       reserved: 0,
     }
   }
+  /// Creates an empty entry in the IDT
   const fn empty() -> Self {
     Self {
       offset_low: 0,
@@ -80,7 +93,8 @@ unsafe extern "C" {
   fn interrupt_stub() -> !;
 }
 
+/// This function is dispatched to by the interrupt stub assembly code.
 #[unsafe(no_mangle)]
 extern "C" fn interrupt_dispatch() {
-  let _ = writeln!(WRITER.lock(), "INTERRUPT: CODE {}", "x");
+  println!("INTERRUPT: x");
 }

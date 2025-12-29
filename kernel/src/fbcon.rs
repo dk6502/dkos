@@ -1,30 +1,69 @@
 use core::fmt;
-
 use lazy_static::lazy_static;
 use limine::framebuffer::Framebuffer;
-use spin::mutex::Mutex;
+use spin::Mutex;
 use spleen_font::{FONT_12X24, PSF2Font};
 
-use crate::{FRAMEBUFFER_REQUEST, display::Display};
+use crate::FRAMEBUFFER_REQUEST;
 
 lazy_static! {
-  pub static ref WRITER: Mutex<Writer<'static>> = {
+  pub static ref FB_WRITER: Mutex<FramebufferWriter<'static>> = {
     let font = PSF2Font::new(FONT_12X24).unwrap();
     let framebuffer_response = FRAMEBUFFER_REQUEST.get_response().unwrap();
     let framebuffer = framebuffer_response.framebuffers().next().unwrap();
-    let writer = Mutex::new(Writer::new(framebuffer, font));
+    let writer = Mutex::new(FramebufferWriter::new(framebuffer, font));
     writer
   };
 }
 
-pub struct Writer<'a> {
+// Print macro.
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::fbcon::_print(format_args!($($arg)*)));
+}
+
+// Print line macro.
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+}
+
+// Print function for macros.
+#[doc(hidden)]
+pub fn _print(args: fmt::Arguments) {
+  use core::fmt::Write;
+  FB_WRITER.lock().write_fmt(args).unwrap();
+}
+
+/// Display trait
+pub trait FramebufferDisplay {
+  // All this function needs is to be able to write a pixel to the screen
+  unsafe fn write_pixel(&self, code: u32, x: u64, y: u64);
+}
+
+impl<'a> FramebufferDisplay for Framebuffer<'a> {
+  unsafe fn write_pixel(&self, color: u32, x: u64, y: u64) {
+    let pixel_offset = y * self.pitch() + x * 4;
+    unsafe {
+      self
+        .addr()
+        .add(pixel_offset as usize)
+        .cast::<u32>()
+        .write(color);
+    }
+  }
+}
+
+/// Struct for writing to the framebuffer. Usually hidden behind a `Mutex`
+pub struct FramebufferWriter<'a> {
   pub framebuffer: Framebuffer<'a>,
   pub font: PSF2Font<'a>,
   col_x: usize,
   row_y: usize,
 }
 
-impl<'a> Writer<'a> {
+impl<'a> FramebufferWriter<'a> {
   pub fn new(framebuffer: Framebuffer<'a>, font: PSF2Font<'a>) -> Self {
     Self {
       framebuffer,
@@ -35,7 +74,7 @@ impl<'a> Writer<'a> {
   }
 }
 
-impl<'a> fmt::Write for Writer<'a> {
+impl<'a> fmt::Write for FramebufferWriter<'a> {
   fn write_str(&mut self, s: &str) -> fmt::Result {
     let mut tmp = [0u8, 2];
     for char in s.chars() {

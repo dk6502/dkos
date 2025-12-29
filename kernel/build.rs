@@ -1,6 +1,6 @@
 fn main() {
   cc::Build::new()
-    .file("src/interrupt_stub.s")
+    .file("src/arch/x86_64/interrupt_stub.s")
     .compile("interrupt_stub");
   let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
   // Tell cargo to pass the linker script to the linker..
