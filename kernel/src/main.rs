@@ -10,6 +10,7 @@ use uart_16550::SerialPort;
 
 mod arch;
 mod fbcon;
+mod memory;
 
 // #[used] lets the compiler know not to remove these
 #[used]
@@ -65,7 +66,9 @@ unsafe extern "C" fn kmain() -> ! {
     arch::x86_64::idt::init_idt();
     unsafe { asm!("int3") }
   }
-  divide_by_zero();
+  unsafe {
+    *(0xDEADBEEF as *mut u8) = 42;
+  }
 
   hcf();
 }

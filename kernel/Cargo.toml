@@ -17,6 +17,7 @@ uart_16550.workspace = true
 limine.workspace = true
 lazy_static.workspace = true
 spin.workspace = true
+seq-macro = "0.3.6"
 
 [profile.dev]
 panic = "abort"
