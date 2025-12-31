@@ -14,10 +14,10 @@ interrupt_stub\+:
   movq $0, %rsi
   .endif
   # pop value opf rip
-  popq %rdx
+  #popq %rdx
   # call interrupt dispatch
   call interrupt_dispatch
   # let it all go
-  addq $16, %rsp
+  #addq $24, %rsp
   iretq
 .endr

@@ -1,4 +1,4 @@
-use core::{arch::asm, fmt::Error};
+use core::arch::asm;
 
 use seq_macro::seq;
 
@@ -19,6 +19,7 @@ static mut IDT: [InterruptDescriptorTableEntry; IDT_ENTRY_COUNT] =
 /// goes back to a (preferably fixed) version of the faulty instruction.
 /// A trap (usually software generated) would continue to the next instruction.
 #[repr(u8)]
+#[allow(unused)]
 enum GateType {
   Interrupt = 0x0E,
   Trap = 0x0F,
@@ -104,9 +105,6 @@ seq! { N in 0..256 {
 /// This function is dispatched to by the interrupt stub assembly code.
 
 #[unsafe(no_mangle)]
-extern "C" fn interrupt_dispatch(vector: u64, error_code: u64, rip: u64) {
-  println!(
-    "INTERRUPT: 0x0{:x}, ERROR CODE: 0x{:x}, RIP: 0x{:x}",
-    vector, error_code, rip
-  );
+extern "C" fn interrupt_dispatch(vector: u64, error_code: u64) {
+  println!("INTERRUPT: 0x0{:x}, ERROR CODE: 0x{:x}", vector, error_code);
 }

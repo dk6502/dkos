@@ -4,7 +4,7 @@ use limine::framebuffer::Framebuffer;
 use spin::Mutex;
 use spleen_font::{FONT_12X24, PSF2Font};
 
-use crate::FRAMEBUFFER_REQUEST;
+use crate::requests::FRAMEBUFFER_REQUEST;
 
 lazy_static! {
   pub static ref FB_WRITER: Mutex<FramebufferWriter<'static>> = {

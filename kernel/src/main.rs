@@ -3,31 +3,20 @@
 #![feature(abi_x86_interrupt)]
 
 use core::arch::asm;
-
-use limine::BaseRevision;
-use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
+use limine::{
+  memory_map::{Entry, EntryType},
+  paging::Mode,
+};
 use uart_16550::SerialPort;
+
+use crate::{
+  arch::x86_64::mem::{PML4, init_paging},
+  requests::{BASE_REVISION, HHDM_RESPONSE, MEMORY_MAP_RESPONSE, PAGING_MODE_REQUEST},
+};
 
 mod arch;
 mod fbcon;
-mod memory;
-
-// #[used] lets the compiler know not to remove these
-#[used]
-#[unsafe(link_section = ".requests")]
-static BASE_REVISION: BaseRevision = BaseRevision::new();
-
-#[used]
-#[unsafe(link_section = ".requests")]
-static FRAMEBUFFER_REQUEST: FramebufferRequest = FramebufferRequest::new();
-
-#[used]
-#[unsafe(link_section = ".requests_start_marker")]
-static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
-
-#[used]
-#[unsafe(link_section = ".requests_end_marker")]
-static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
+mod requests;
 
 const SERIAL_IO_PORT: u16 = 0x3F8;
 
@@ -57,6 +46,8 @@ fn hcf() -> ! {
 #[unsafe(no_mangle)]
 unsafe extern "C" fn kmain() -> ! {
   assert!(BASE_REVISION.is_supported());
+  assert!(PAGING_MODE_REQUEST.get_response().unwrap().mode() == Mode::MIN);
+
   let mut serial_port = unsafe { SerialPort::new(SERIAL_IO_PORT) };
   serial_port.init();
   println!("dkos 0.1.0");
@@ -64,10 +55,6 @@ unsafe extern "C" fn kmain() -> ! {
   {
     arch::x86_64::gdt::init_gdt();
     arch::x86_64::idt::init_idt();
-    unsafe { asm!("int3") }
-  }
-  unsafe {
-    *(0xDEADBEEF as *mut u8) = 42;
   }
 
   hcf();
