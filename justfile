@@ -7,7 +7,7 @@ build:
     #!/usr/bin/env sh
     if {{windows}}; then just xorriso-win; fi
     if cargo build; then
-    if test -a limine;
+    if test -a tools/limine;
     then echo Limine is already cloned
     else git clone https://github.com/limine-bootloader/limine.git --branch=v10.x-binary --depth=1 tools/limine
     fi
