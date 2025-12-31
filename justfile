@@ -1,9 +1,11 @@
 export CC := if os_family() == "windows" {"clang.exe"} else {""}
 export AR := if os_family() == "windows" {"ar.exe"} else {""}
 xorriso := if os_family() == "windows" {"tools/xorriso/xorriso.exe"} else {"xorriso"}
+windows := if os_family() == "windows" {"true"} else {"false"}
 
 build: xorriso-win
     #!/usr/bin/env sh
+    if windows; then just xorriso-win; fi
     if cargo build; then
     if test -a limine;
     then echo Limine is already cloned
