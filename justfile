@@ -3,7 +3,7 @@ export AR := if os_family() == "windows" {"ar.exe"} else {""}
 xorriso := if os_family() == "windows" {"tools/xorriso/xorriso.exe"} else {"xorriso"}
 windows := if os_family() == "windows" {"true"} else {"false"}
 
-build: xorriso-win
+build:
     #!/usr/bin/env sh
     if windows; then just xorriso-win; fi
     if cargo build; then
