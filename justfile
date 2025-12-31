@@ -5,7 +5,7 @@ windows := if os_family() == "windows" {"true"} else {"false"}
 
 build:
     #!/usr/bin/env sh
-    if windows; then just xorriso-win; fi
+    if {{windows}}; then just xorriso-win; fi
     if cargo build; then
     if test -a limine;
     then echo Limine is already cloned
