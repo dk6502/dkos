@@ -1,6 +1,6 @@
 *.iso
 *.img
-limine/
+tools/
 log*
 
 # Added by cargo
