@@ -55,6 +55,7 @@ unsafe extern "C" fn kmain() -> ! {
   {
     arch::x86_64::gdt::init_gdt();
     arch::x86_64::idt::init_idt();
+    init_paging();
   }
 
   hcf();

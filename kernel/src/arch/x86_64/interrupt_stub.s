@@ -7,17 +7,13 @@ interrupt_stub\+:
   # the interrupt vector is the 1st argument
   movq $\+, %rdi
   # if the exception has an error code, pop it off the stack
-  .if \+ > 9 && \+ < 15 || \+ == 17
+  .if \+ > 9 && \+ < 15 || \+ == 17 || \+ == 21 || \+ == 8
   popq %rsi
   # otherwise add a dummy
   .else
   movq $0, %rsi
   .endif
-  # pop value opf rip
-  #popq %rdx
   # call interrupt dispatch
   call interrupt_dispatch
-  # let it all go
-  #addq $24, %rsp
   iretq
 .endr

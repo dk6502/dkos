@@ -33,7 +33,7 @@ build:
     fi
 
 clean:
-    rm -rf limine
+    rm -rf tools
     rm -f dkos-*.iso
     cargo clean
 
