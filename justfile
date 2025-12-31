@@ -9,7 +9,7 @@ build:
     if cargo build; then
     if test -a limine;
     then echo Limine is already cloned
-    else git clone https://github.com/limine-bootloader/limine.git --branch=v9.x-binary --depth=1 tools/limine
+    else git clone https://github.com/limine-bootloader/limine.git --branch=v10.x-binary --depth=1 tools/limine
     fi
     make -C tools/limine
     rm -rf iso_root
